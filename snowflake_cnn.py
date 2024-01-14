@@ -3,14 +3,12 @@ import torch.nn as nn
 import sys
 from torchvision import datasets,transforms
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader,Dataset
 import torchvision
 
 # # 1. CNN model
-
-
 epoch = 500
-batch_size = 128
+batch_size = 128*4
 
 class CNN(nn.Module):
     def __init__(self):
@@ -48,24 +46,33 @@ class CNN(nn.Module):
 
 # # 2. data
 
-# In[97]:
+class myDataset(Dataset):
+    def __init__(self, data_path):
+        n = 224
+        transform = transforms.Compose([transforms.Resize((n,n)), transforms.ToTensor()])
+        self.data = datasets.ImageFolder(f'{train_path}',transform)
+
+    def __getitem__(self, index):
+        x,y = self.data[index]
+        y = torch.tensor(y)
+        x = x.to(device)
+        y = y.to(device)
+
+        return x,y
+
+    def __len__(self):
+        self.len = len(self.data.targets)
+        return self.len
+
+
 
 print(f'step 1: load data')
 
-train_path = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/training'
-test_path  = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/test'
-n = 224
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-transform = transforms.Compose([transforms.Resize((n,n)), transforms.ToTensor()])
-
-# In[108]:
-
-
-train_data = datasets.ImageFolder(f'{train_path}',transform)
+train_path = f'/work/tzhang/storm/training'
+train_data = myDataset(train_path)
 train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
 
-n_train = len(train_data.targets)
 
 # # 3. train
 
@@ -83,8 +90,6 @@ for e in range(epoch):
     train_loss = 0.0
     for i,data in enumerate(train_loader):
         x,y = data
-        x = x.to(device)
-        y = y.to(device)
         optimizer.zero_grad()
 
         out = model(x)    
@@ -94,7 +99,7 @@ for e in range(epoch):
 
         train_loss += loss.item()
     
-    print(f'epoch={e}, loss = {train_loss/n_train:.5f}')
+    print(f'epoch={e}, loss = {train_loss/train_data.len:.5f}')
 
 
 
