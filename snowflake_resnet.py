@@ -9,42 +9,7 @@ import torchvision
 from loguru import logger
 import argparse
 import numpy as np
-
-# # 1. CNN model
-
-class CNN(nn.Module):
-    def __init__(self):
-        super(CNN,self).__init__()
-        
-        self.conv1 = nn.Conv2d(3,16,kernel_size=3,stride=1,padding=1)
-        self.relu1 = nn.ReLU()
-        self.maxpool1 = nn.MaxPool2d(kernel_size=2,stride=2)
-        
-        self.conv2 = nn.Conv2d(16,32,kernel_size=3,stride=1,padding=1)
-        self.relu2 = nn.ReLU()
-        self.maxpool2 = nn.MaxPool2d(kernel_size=2,stride=2)
-        
-        self.fc1 = nn.Linear(32*56*56, 64)
-        self.relu3 = nn.ReLU()
-        self.fc2 = nn.Linear(64,5)
-        
-    def forward(self,x):
-        x = self.conv1(x)
-        x = self.relu1(x)
-        x = self.maxpool1(x)
-        
-        x = self.conv2(x)
-        x = self.relu2(x)
-        x = self.maxpool2(x)
-        
-        x = x.view(x.size(0),-1)
-        
-        x = self.fc1(x)
-        x = self.relu3(x)
-        x = self.fc2(x)
-        
-        
-        return x
+import torchvision.models as models
 
 # # 2. data
 
@@ -70,7 +35,7 @@ def train():
     logger.remove()
     fmt = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <cyan>{level}</cyan> | {message}"
     logger.add(sys.stdout, format=fmt)
-    log_path = f'../saved_logs/cnn_log'
+    log_path = f'../saved_logs/resnet_log'
     if os.path.exists(log_path):
         os.remove(log_path)
     ii = logger.add(log_path)
@@ -89,11 +54,13 @@ def train():
     # # 3. train
     
     logger.debug(f'step 3: train')
-    model = CNN()
-    #model = nn.DataParallel(model)
-    model = model.to(device)
+    resnet = models.resnet50(pretrained=True)
+    num_features = resnet.fc.in_features
+    resnet.fc = torch.nn.Linear(num_features, 5)
+    resnet = resnet.to(device)
+    resnet = nn.DataParallel(resnet)
     criterion = nn.CrossEntropyLoss()
-    optimizer = optim.SGD(model.parameters(), lr=0.002)
+    optimizer = optim.SGD(resnet.parameters(), lr=0.002)
     
     for e in range(epoch):
         train_loss = 0.0
@@ -101,7 +68,7 @@ def train():
             x,y = data
             optimizer.zero_grad()
     
-            out = model(x)    
+            out = resnet(x)    
             loss = criterion(out,y)
             loss.backward()
             optimizer.step()
@@ -110,7 +77,7 @@ def train():
         
         logger.info(f'epoch={e}, loss = {train_loss/train_len:.5f}')
     
-    torch.save(model, f'../saved_models/cnn')
+    torch.save(resnet, f'../saved_models/resnet')
 
 def test():
     test_path = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/test/'
@@ -118,7 +85,7 @@ def test():
     test_data = myDataset(test_path)
     test_loader = DataLoader(test_data, batch_size=batch_size,shuffle=False)
 
-    model = torch.load(f'../saved_models/cnn')
+    model = torch.load(f'../saved_models/resnet')
 
     total_correct = 0
     confusion_matrix = np.zeros([5,5],int)
@@ -145,6 +112,8 @@ def test():
 epoch = 200
 batch_size = 128*4
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+torch.manual_seed(42)
+np.random.seed(42)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-p', "--process", required=True)
