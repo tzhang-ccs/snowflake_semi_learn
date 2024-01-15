@@ -1,14 +1,15 @@
 import torch
 import torch.nn as nn
 import sys
+import os
 from torchvision import datasets,transforms
 import torch.optim as optim
 from torch.utils.data import DataLoader,Dataset
 import torchvision
+from loguru import logger
+import argparse
 
 # # 1. CNN model
-epoch = 500
-batch_size = 128*4
 
 class CNN(nn.Module):
     def __init__(self):
@@ -50,7 +51,7 @@ class myDataset(Dataset):
     def __init__(self, data_path):
         n = 224
         transform = transforms.Compose([transforms.Resize((n,n)), transforms.ToTensor()])
-        self.data = datasets.ImageFolder(f'{train_path}',transform)
+        self.data = datasets.ImageFolder(f'{data_path}',transform)
 
     def __getitem__(self, index):
         x,y = self.data[index]
@@ -61,46 +62,85 @@ class myDataset(Dataset):
         return x,y
 
     def __len__(self):
-        self.len = len(self.data.targets)
-        return self.len
+        self.num = len(self.data.targets)
+        return self.num
 
-
-
-print(f'step 1: load data')
-
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-train_path = f'/work/tzhang/storm/training'
-train_data = myDataset(train_path)
-train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
-
-
-# # 3. train
-
-# In[99]:
-
-print(f'step 3: train')
-model = CNN().to(device)
-criterion = nn.CrossEntropyLoss()
-optimizer = optim.SGD(model.parameters(), lr=0.001)
-
-# In[ ]:
-
-
-for e in range(epoch):
-    train_loss = 0.0
-    for i,data in enumerate(train_loader):
-        x,y = data
-        optimizer.zero_grad()
-
-        out = model(x)    
-        loss = criterion(out,y)
-        loss.backward()
-        optimizer.step()
-
-        train_loss += loss.item()
+def train():
+    logger.remove()
+    fmt = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <cyan>{level}</cyan> | {message}"
+    logger.add(sys.stdout, format=fmt)
+    log_path = f'../saved_logs/cnn_log'
+    if os.path.exists(log_path):
+        os.remove(log_path)
+    ii = logger.add(log_path)
     
-    print(f'epoch={e}, loss = {train_loss/train_data.len:.5f}')
+    logger.debug(f'step 0: config')
 
 
+    logger.debug(f'step 1: load data')
+    train_path = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/training'
+    train_data = myDataset(train_path)
+    train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
+    train_len = train_data.num
+    del train_data
+    
+    # # 3. train
+    
+    logger.debug(f'step 3: train')
+    model = CNN()
+    model = nn.DataParallel(model)
+    model = model.to(device)
+    criterion = nn.CrossEntropyLoss()
+    optimizer = optim.SGD(model.parameters(), lr=0.002)
+    
+    for e in range(epoch):
+        train_loss = 0.0
+        for i,data in enumerate(train_loader):
+            x,y = data
+            optimizer.zero_grad()
+    
+            out = model(x)    
+            loss = criterion(out,y)
+            loss.backward()
+            optimizer.step()
+    
+            train_loss += loss.item()
+        
+        logger.info(f'epoch={e}, loss = {train_loss/train_len:.5f}')
+    
+    torch.save(model, f'../saved_models/cnn')
+
+def test():
+    test_path = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/test/'
+    test_data = myDataset(test_path)
+    test_loader = DataLoader(test_data, batch_size=batch_size,shuffle=False)
+
+    model = torch.load(f'../saved_models/cnn')
+
+    with torch.no_grad():
+        for data in test_loader:
+            x,y = data
+            out = model(x)
+            torch.max(out.data,1)
+
+            print(out.shape)
+            sys.exit()
+
+
+epoch = 100
+batch_size = 128*8
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-p', "--process", required=True)
+
+args = parser.parse_args()
+process = args.process
+
+if process == 'train':
+    train()
+
+if process == 'test':
+    test()
 
 
