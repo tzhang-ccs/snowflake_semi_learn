@@ -8,6 +8,7 @@ from torch.utils.data import DataLoader,Dataset
 import torchvision
 from loguru import logger
 import argparse
+import numpy as np
 
 # # 1. CNN model
 
@@ -79,6 +80,7 @@ def train():
 
     logger.debug(f'step 1: load data')
     train_path = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/training'
+    train_path = f'/work/tzhang/storm/training'
     train_data = myDataset(train_path)
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
     train_len = train_data.num
@@ -88,7 +90,7 @@ def train():
     
     logger.debug(f'step 3: train')
     model = CNN()
-    model = nn.DataParallel(model)
+    #model = nn.DataParallel(model)
     model = model.to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(model.parameters(), lr=0.002)
@@ -112,23 +114,36 @@ def train():
 
 def test():
     test_path = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/test/'
+    test_path = f'/work/tzhang/storm/test/'
     test_data = myDataset(test_path)
     test_loader = DataLoader(test_data, batch_size=batch_size,shuffle=False)
 
     model = torch.load(f'../saved_models/cnn')
 
+    total_correct = 0
+    confusion_matrix = np.zeros([5,5],int)
+    total_labels = np.zeros(5,int)
+
     with torch.no_grad():
         for data in test_loader:
             x,y = data
             out = model(x)
-            torch.max(out.data,1)
+            _, out = torch.max(out.data,1)
+            
+            total_correct += (out == y).sum().item()
+            for i,l in enumerate(y):
+                confusion_matrix[l.item(),out[i].item()] += 1
+    
+            for ll in y:
+                total_labels[ll] += 1
 
-            print(out.shape)
-            sys.exit()
 
+    accuracy = total_correct/test_data.num
+    print(f'accuracy = {accuracy:.3f}')
+    print(confusion_matrix/total_labels)
 
-epoch = 100
-batch_size = 128*8
+epoch = 10
+batch_size = 128
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 parser = argparse.ArgumentParser()
