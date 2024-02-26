@@ -1,5 +1,5 @@
 import sys
-sys.path.insert(0,"/global/homes/z/zhangtao/tsi-cloud/Semi-supervised-learning")
+sys.path.insert(0,"/home/tzhang/storm/Semi-supervised-learning")
 import semilearn
 from semilearn import get_dataset, get_data_loader, get_net_builder, get_algorithm, get_config, Trainer
 from semilearn import BasicDataset
@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from semilearn.datasets.utils import split_ssl_data
 import argparse
+import wandb
 
 def transform_fun():
     n = 224
@@ -41,10 +42,10 @@ def train_main(train_path):
 
     # cifar.py get_cifar()
     #lb_data, lb_targets, ulb_data, ulb_targets = split_ssl_data()
-    dataset_dict = get_dataset(config, config.algorithm, config.dataset, config.num_labels, config.num_classes, data_dir=config.data_dir, include_lb_to_ulb=config.include_lb_to_ulb)
-    train_lb_loader = get_data_loader(config, dataset_dict['train_lb'], config.batch_size)
-    train_ulb_loader = get_data_loader(config, dataset_dict['train_ulb'], int(config.batch_size * config.uratio))
-    eval_loader = get_data_loader(config, dataset_dict['eval'], config.eval_batch_size, data_sampler=None)
+    #dataset_dict = get_dataset(config, config.algorithm, config.dataset, config.num_labels, config.num_classes, data_dir=config.data_dir, include_lb_to_ulb=config.include_lb_to_ulb)
+    #train_lb_loader = get_data_loader(config, dataset_dict['train_lb'], config.batch_size)
+    #train_ulb_loader = get_data_loader(config, dataset_dict['train_ulb'], int(config.batch_size * config.uratio))
+    #eval_loader = get_data_loader(config, dataset_dict['eval'], config.eval_batch_size, data_sampler=None)
 
     # ### 3.2 train dataloader
 
@@ -132,12 +133,11 @@ def test_main(test_path):
     eval_dset = BasicDataset(config.algorithm, test_img, test_target, num_classes, transform_eval, False, None, False)
     eval_loader = get_data_loader(config, eval_dset, config.eval_batch_size, data_sampler=None)
 
-    trainer.evaluate(eval_loader)
+    result_dict = trainer.evaluate(eval_loader)
     y_pred, y_logits, y_true = trainer.predict(eval_loader, return_gt=True)
     np.savez('fixmatch.npz',y_pred=y_pred, y_true=y_true)
 
 # ## Step 1: define configs and create config
-
 
 config = {
     'algorithm': 'fixmatch',
@@ -147,25 +147,25 @@ config = {
     'save_dir': '../saved_models/',
 
     # optimization configs
-    'epoch': 200,  
-    'num_train_iter': 2000,  
-    'num_eval_iter': 500,  
+    'epoch': 100,  
+    'num_train_iter': 3000,  
+    'num_eval_iter': 1000,  
     'num_log_iter': 50,  
     'optim': 'AdamW',
-    'lr': 2e-4,
+    'lr': 1e-3,
     'layer_decay': 0.5,
-    'batch_size': 64,
-    'eval_batch_size': 64,
+    'batch_size': 32,
+    'eval_batch_size': 32,
 
 
     # dataset configs
     'dataset': 'cifar10',
-    'num_labels': 1000,
+    'num_labels': 50,
     'num_classes': 5,
     'img_size': 224,
-    'crop_ratio': 0.875,
+    'crop_ratio': 0.975,
     'data_dir': '../data',
-    'ulb_samples_per_class': None,
+    'ulb_samples_per_class': 1000,
 
     # algorithm specific configs
     'hard_label': True,
@@ -178,6 +178,15 @@ config = {
     'distributed': False,
     "num_workers": 2,
 }
+
+run = wandb.init(
+        project='snowflake-classification',
+        config=config,
+        #name = '',
+        dir='../saved_logs/',
+        )
+
+
 config = get_config(config)
 parser = argparse.ArgumentParser()
 parser.add_argument('-p','--process',required=True)
@@ -185,13 +194,15 @@ parser.add_argument('-p','--process',required=True)
 args = parser.parse_args()
 process = args.process
 
-torch.manual_seed(42)
-np.random.seed(42)
+torch.manual_seed(10)
+np.random.seed(10)
 
 target_class = ['AG','CC','GR','PC','SP']
 num_classes = len(target_class)
-train_path = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/training'
-test_path  = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/test'
+#train_path = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/training'
+#test_path  = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/test'
+train_path = f'/work/tzhang/storm/training'
+test_path  = f'/work/tzhang/storm/test'
 
 # ## Step 2: create model and specify algorithm
 algorithm = get_algorithm(config,  get_net_builder(config.net, from_name=False), tb_log=None, logger=None)
@@ -199,10 +210,11 @@ algorithm = get_algorithm(config,  get_net_builder(config.net, from_name=False),
 transform_eval, transform, transform_weak, transform_strong = transform_fun()
 
 if process == 'train':
-	train_main(train_path)
+    train_main(train_path)
+    run.finish()
 
 if process == 'test':
-	test_main(test_path)
+    test_main(test_path)
 
 
 
