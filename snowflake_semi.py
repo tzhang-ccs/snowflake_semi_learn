@@ -152,7 +152,7 @@ config = {
     'num_eval_iter': 1000,  
     'num_log_iter': 50,  
     'optim': 'AdamW',
-    'lr': 1e-3,
+    'lr': 4e-3,
     'layer_decay': 0.5,
     'batch_size': 32,
     'eval_batch_size': 32,
@@ -199,10 +199,10 @@ np.random.seed(10)
 
 target_class = ['AG','CC','GR','PC','SP']
 num_classes = len(target_class)
-#train_path = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/training'
-#test_path  = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/test'
-train_path = f'/work/tzhang/storm/training'
-test_path  = f'/work/tzhang/storm/test'
+train_path = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/training'
+test_path  = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/test'
+#train_path = f'/work/tzhang/storm/training'
+#test_path  = f'/work/tzhang/storm/test'
 
 # ## Step 2: create model and specify algorithm
 algorithm = get_algorithm(config,  get_net_builder(config.net, from_name=False), tb_log=None, logger=None)
