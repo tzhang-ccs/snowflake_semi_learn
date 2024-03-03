@@ -9,12 +9,6 @@ import open_clip
 import cv2
 from sentence_transformers import util
 from PIL import Image
-from tqdm import tqdm
-import argparse
-from loguru import logger
-logger.remove()
-fmt = "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <cyan>{level}</cyan> | {message}"
-logger.add(sys.stdout, format=fmt)
 
 def imageEncoder(img):
     #img1 = Image.fromarray(img).convert('RGB')
@@ -31,18 +25,6 @@ def generateScore(image1, image2):
     score = round(float(cos_scores[0][0])*100, 2)
     return score
 
-parser = argparse.ArgumentParser()
-parser.add_argument('--begin','-b', required=True)
-parser.add_argument('--end','-e', required=True)
-parser.add_argument('--log','-l', required=True)
-args = parser.parse_args()
-
-begin_id = int(args.begin)
-end_id  = int(args.end)
-log_id  = int(args.log)
-logger.add(f'log.{log_id}')
-
-logger.info(f'{begin_id=}, {end_id=}, {log_id=}')
 
 train_path = f'/pscratch/sd/z/zhangtao/storm/tmp/key_paper/training'
 test_path  = f'/pscratch/sd/z/zhangtao/storm/tmp/key_paper/test'
@@ -82,30 +64,48 @@ for img, target in test_data:
         test_target_2.append(target) 
 
 model, _, preprocess = open_clip.create_model_and_transforms('ViT-B-16-plus-240', pretrained="laion400m_e32")
+testing_data = test_img_1
 
-total_score = 0
-for j in tqdm(range(begin_id, end_id)):
+def similarity(data):
+    start_ix,n_len = int(data[0]),int(data[1])
+    print(f'{start_ix=},{n_len=}')
 
-    img1 = np.array(test_img_2[j])
+    total_score = 0
 
-    ssim_score_1 = 0
-    ssim_score_2 = 0
+    for j in range(start_ix,start_ix+n_len):
 
-    for i in range(30):
-        img2 = np.array(train_img_1[j])
-        score = generateScore(img1, img2)
-        #img2 = cv2.cvtColor(np.array(train_img_1[i]), cv2.COLOR_BGR2GRAY)
-        #ssim_score,_ = metrics.structural_similarity(img1, img2, full=True)
-        ssim_score_1 += score
+        img1 = np.array(testing_data[j])
 
-        img2 = np.array(train_img_2[i])
-        score = generateScore(img1,img2)
-        #ssim_score,_ = metrics.structural_similarity(img1, img2, full=True)
-        ssim_score_2 += score
+        ssim_score_1 = 0
+        ssim_score_2 = 0
 
-    if ssim_score_1 > ssim_score_2:
-        total_score += 1
-    #print(ssim_score_1,ssim_score_2)
+        print(f'{start_ix=},{n_len=}, {j=}')
 
-logger.info(f'{total_score=}')
-logger.info(total_score/len(test_img_2))
+        for i in range(3):
+            img2 = np.array(train_img_1[j])
+            score = generateScore(img1, img2)
+            ssim_score_1 += score
+
+            img2 = np.array(train_img_2[i])
+            score = generateScore(img1,img2)
+            ssim_score_2 += score
+
+        if ssim_score_1 > ssim_score_2:
+            total_score += 1
+
+    print(f'{total_score=}')
+
+nprocess=10
+len_seq = len(testing_data)
+num = len_seq//nprocess
+start_ix = np.arange(len_seq)[::num]
+nn = np.zeros(nprocess)
+for i in range(len(nn)):
+    if i != len(nn) - 1:
+        nn[i] = start_ix[i+1] - start_ix[i]
+    else:
+        nn[i] = len_seq - start_ix[i]
+
+input_data = list(zip(start_ix,nn))
+pool = multiprocessing.Pool(nprocess)
+pool.map(similarity,input_data)

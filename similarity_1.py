@@ -85,6 +85,7 @@ model, _, preprocess = open_clip.create_model_and_transforms('ViT-B-16-plus-240'
 
 total_score = 0
 for j in tqdm(range(begin_id, end_id)):
+    logger.debug(j)
 
     img1 = np.array(test_img_2[j])
 
