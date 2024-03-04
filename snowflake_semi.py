@@ -194,8 +194,8 @@ parser.add_argument('-p','--process',required=True)
 args = parser.parse_args()
 process = args.process
 
-torch.manual_seed(10)
-np.random.seed(10)
+torch.manual_seed(30)
+np.random.seed(30)
 
 target_class = ['AG','CC','GR','PC','SP']
 num_classes = len(target_class)

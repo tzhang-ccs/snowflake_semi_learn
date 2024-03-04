@@ -10,6 +10,7 @@ from loguru import logger
 import argparse
 import numpy as np
 import torchvision.models as models
+from torch.utils.data.sampler import SubsetRandomSampler
 
 # # 2. data
 
@@ -42,13 +43,18 @@ def train():
     
     logger.debug(f'step 0: config')
 
+    #load part of data
+    subset_size = 5000
+    sampler = SubsetRandomSampler(range(subset_size))
+    train_len = subset_size
 
     logger.debug(f'step 1: load data')
     train_path = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/training'
     #train_path = f'/work/tzhang/storm/training'
     train_data = myDataset(train_path)
-    train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
-    train_len = train_data.num
+    #train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
+    train_loader = DataLoader(train_data, batch_size=batch_size, sampler=sampler)
+    #train_len = train_data.num
     del train_data
     
     # # 3. train
@@ -76,7 +82,8 @@ def train():
             train_loss += loss.item()
         
         logger.info(f'epoch={e}, loss = {train_loss/train_len:.5f}')
-    
+ 
+    os.system(f'rm -rf ../saved_models/resnet')
     torch.save(resnet, f'../saved_models/resnet')
 
 def test():
