@@ -160,7 +160,7 @@ config = {
 
     # dataset configs
     'dataset': 'cifar10',
-    'num_labels': 50,
+    'num_labels': 400,
     'num_classes': 5,
     'img_size': 224,
     'crop_ratio': 0.975,
@@ -190,12 +190,14 @@ run = wandb.init(
 config = get_config(config)
 parser = argparse.ArgumentParser()
 parser.add_argument('-p','--process',required=True)
+parser.add_argument('-s','--seed',required=True)
 
 args = parser.parse_args()
 process = args.process
+seed = int(args.seed)
 
-torch.manual_seed(30)
-np.random.seed(30)
+torch.manual_seed(seed)
+np.random.seed(seed)
 
 target_class = ['AG','CC','GR','PC','SP']
 num_classes = len(target_class)

@@ -43,18 +43,13 @@ def train():
     
     logger.debug(f'step 0: config')
 
-    #load part of data
-    subset_size = 5000
-    sampler = SubsetRandomSampler(range(subset_size))
-    train_len = subset_size
 
     logger.debug(f'step 1: load data')
     train_path = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/training'
     #train_path = f'/work/tzhang/storm/training'
     train_data = myDataset(train_path)
-    #train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
-    train_loader = DataLoader(train_data, batch_size=batch_size, sampler=sampler)
-    #train_len = train_data.num
+    train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
+    train_len = train_data.num
     del train_data
     
     # # 3. train
@@ -64,18 +59,23 @@ def train():
     num_features = resnet.fc.in_features
     resnet.fc = torch.nn.Linear(num_features, 5)
     resnet = resnet.to(device)
-    resnet = nn.DataParallel(resnet)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.SGD(resnet.parameters(), lr=0.002)
     
+    resnet.train()
+
     for e in range(epoch):
         train_loss = 0.0
         for i,data in enumerate(train_loader):
             x,y = data
             optimizer.zero_grad()
     
+            print("xx: ",x.shape,y.shape)
+
             out = resnet(x)    
+            print("out: ", out.shape)
             loss = criterion(out,y)
+            print("loss: ", loss)
             loss.backward()
             optimizer.step()
     
@@ -93,6 +93,7 @@ def test():
     test_loader = DataLoader(test_data, batch_size=batch_size,shuffle=False)
 
     model = torch.load(f'../saved_models/resnet')
+    model.eval()
 
     total_correct = 0
     confusion_matrix = np.zeros([5,5],int)
@@ -116,8 +117,9 @@ def test():
     print(f'accuracy = {accuracy:.3f}')
     print(confusion_matrix/total_labels)
 
-epoch = 200
+epoch = 100
 batch_size = 128*4
+batch_size = 12
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 torch.manual_seed(42)
 np.random.seed(42)
