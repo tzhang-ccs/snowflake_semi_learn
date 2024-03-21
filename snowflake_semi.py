@@ -137,6 +137,17 @@ def test_main(test_path):
     y_pred, y_logits, y_true = trainer.predict(eval_loader, return_gt=True)
     np.savez('fixmatch.npz',y_pred=y_pred, y_true=y_true)
 
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-p','--process',required=True)
+parser.add_argument('-s','--seed',required=True)
+parser.add_argument('-n','--num',required=True)
+
+args = parser.parse_args()
+process = args.process
+seed = int(args.seed)
+num = int(args.num)
+
 # ## Step 1: define configs and create config
 
 config = {
@@ -160,7 +171,7 @@ config = {
 
     # dataset configs
     'dataset': 'cifar10',
-    'num_labels': 400,
+    'num_labels': num,
     'num_classes': 5,
     'img_size': 224,
     'crop_ratio': 0.975,
@@ -188,13 +199,7 @@ run = wandb.init(
 
 
 config = get_config(config)
-parser = argparse.ArgumentParser()
-parser.add_argument('-p','--process',required=True)
-parser.add_argument('-s','--seed',required=True)
 
-args = parser.parse_args()
-process = args.process
-seed = int(args.seed)
 
 torch.manual_seed(seed)
 np.random.seed(seed)
@@ -203,8 +208,8 @@ target_class = ['AG','CC','GR','PC','SP']
 num_classes = len(target_class)
 train_path = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/training'
 test_path  = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/test'
-#train_path = f'/work/tzhang/storm/training'
-#test_path  = f'/work/tzhang/storm/test'
+train_path = f'/work/tzhang/storm/training'
+test_path  = f'/work/tzhang/storm/test'
 
 # ## Step 2: create model and specify algorithm
 algorithm = get_algorithm(config,  get_net_builder(config.net, from_name=False), tb_log=None, logger=None)

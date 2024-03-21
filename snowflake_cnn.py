@@ -79,8 +79,8 @@ def train():
 
 
     logger.debug(f'step 1: load data')
-    train_path = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/training'
-    #train_path = f'/work/tzhang/storm/training'
+    #train_path = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/training'
+    train_path = f'/work/tzhang/storm/training'
     train_data = myDataset(train_path)
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
     train_len = train_data.num
@@ -113,8 +113,8 @@ def train():
     torch.save(model, f'../saved_models/cnn')
 
 def test():
-    test_path = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/test/'
-    #test_path = f'/work/tzhang/storm/test/'
+    #test_path = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/test/'
+    test_path = f'/work/tzhang/storm/test/'
     test_data = myDataset(test_path)
     test_loader = DataLoader(test_data, batch_size=batch_size,shuffle=False)
 
@@ -142,18 +142,25 @@ def test():
     print(f'accuracy = {accuracy:.3f}')
     print(confusion_matrix/total_labels)
 
-epoch = 200
+epoch = 100
 batch_size = 128*4
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-p', "--process", required=True)
+parser.add_argument('-s', "--seed", required=True)
 
 args = parser.parse_args()
 process = args.process
+seed = int(args.seed)
+
+torch.manual_seed(seed)
+np.random.seed(seed)
+
 
 if process == 'train':
     train()
+    test()
 
 if process == 'test':
     test()

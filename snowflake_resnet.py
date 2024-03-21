@@ -45,8 +45,8 @@ def train():
 
 
     logger.debug(f'step 1: load data')
-    train_path = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/training'
-    #train_path = f'/work/tzhang/storm/training'
+    #train_path = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/training'
+    train_path = f'/work/tzhang/storm/training'
     train_data = myDataset(train_path)
     train_loader = DataLoader(train_data, batch_size=batch_size, shuffle=True)
     train_len = train_data.num
@@ -87,8 +87,8 @@ def train():
     torch.save(resnet, f'../saved_models/resnet')
 
 def test():
-    test_path = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/test/'
-    #test_path = f'/work/tzhang/storm/test/'
+    #test_path = f'/pscratch/sd/z/zhangtao/storm/mpc/key_paper/test/'
+    test_path = f'/work/tzhang/storm/test/'
     test_data = myDataset(test_path)
     test_loader = DataLoader(test_data, batch_size=batch_size,shuffle=False)
 
